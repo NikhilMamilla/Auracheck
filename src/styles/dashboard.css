@@ -1,0 +1,42 @@
+.glass-card {
+    @apply bg-white/5 backdrop-blur-md border border-white/10 shadow-xl;
+}
+
+.btn-gradient {
+    @apply bg-gradient-to-r from-indigo-500 to-purple-500 hover: from-indigo-600 hover: to-purple-600;
+}
+
+@keyframes float {
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-10px);
+    }
+}
+
+.animate-float {
+    animation: float 3s ease-in-out infinite;
+}
+
+
+/* Light theme */
+
+.glass-morphism {
+    @apply bg-white/70 backdrop-blur-md border-b border-white/20 shadow-sm;
+}
+
+
+/* Dark theme */
+
+.glass-card-dark {
+    @apply bg-white/5 backdrop-blur-md border border-white/10 shadow-xl;
+}
+
+
+/* Shared animations */
+
+.theme-transition {
+    @apply transition-all duration-300;
+}
