@@ -7,8 +7,8 @@ import ResetPassword from './components/auth/ResetPassword';
 import Greeting from './components/onboarding/Greeting';
 import Questionnaire from './components/onboarding/Questionnaire';
 import GeminiChatbot from './components/GeminiChatbot';
-import GardenDashboard from './components/GardenDashboard';
-import Profile from './components/Profile'; // Import Profile component
+import Dashboard from './components/dashboard/Dashboard';
+import Profile from './components/Profile';
 import { useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider } from './context/AuthContext';
@@ -42,7 +42,7 @@ function App() {
                         } />
                         <Route path="/dashboard" element={
                             <RequireAuth>
-                                <GardenDashboard />
+                                <Dashboard />
                             </RequireAuth>
                         } />
                         <Route path="/profile" element={
