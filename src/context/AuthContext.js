@@ -1,7 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { 
   GoogleAuthProvider, 
-  signInWithPopup, 
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
   signOut,
@@ -23,6 +25,71 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [userData, setUserData] = useState(null);
+  
+  // Check for redirect result on component mount
+  useEffect(() => {
+    const checkRedirectResult = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result?.user) {
+          // Handle the redirect authentication here
+          await handleGoogleAuthUser(result.user);
+        }
+      } catch (err) {
+        console.error("Redirect result error:", err);
+        setError(err.message);
+      }
+    };
+    
+    checkRedirectResult();
+  }, []);
+
+  // Helper function to process Google Auth user data
+  async function handleGoogleAuthUser(user) {
+    try {
+      // Check if user document exists, if not create it
+      const userDocRef = doc(db, 'users', user.uid);
+      const userDocSnap = await getDoc(userDocRef);
+      
+      if (!userDocSnap.exists()) {
+        // Create new user document
+        await setDoc(userDocRef, {
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName || 'User',
+          photoURL: user.photoURL || '',
+          createdAt: serverTimestamp(),
+          lastLogin: serverTimestamp(),
+          mood_entries: [],
+          sleep_entries: [],
+          journal_entries: [],
+          stress_entries: [],
+          activity_impact: [],
+          joinedGroups: [],
+          settings: {
+            language: 'en',
+            notificationsEnabled: true,
+            theme: 'light',
+            privacy: {
+              shareAnonymousData: true,
+              receiveEmails: true,
+              showScoreInCommunity: false
+            }
+          }
+        });
+      } else {
+        // Update last login
+        await updateDoc(userDocRef, {
+          lastLogin: serverTimestamp()
+        });
+      }
+      
+      return true;
+    } catch (err) {
+      console.error("Error handling Google user:", err);
+      throw err;
+    }
+  }
 
   // Enhanced signup function to store user name
   async function signup(email, password, displayName) {
@@ -62,6 +129,7 @@ export const AuthProvider = ({ children }) => {
       
       return userCredential;
     } catch (err) {
+      console.error("Signup error:", err);
       setError(err.message);
       throw err;
     }
@@ -79,6 +147,7 @@ export const AuthProvider = ({ children }) => {
       
       return userCredential;
     } catch (err) {
+      console.error("Login error:", err);
       setError(err.message);
       throw err;
     }
@@ -90,6 +159,7 @@ export const AuthProvider = ({ children }) => {
       setUserData(null);
       return true;
     } catch (err) {
+      console.error("Logout error:", err);
       setError(err.message);
       throw err;
     }
@@ -102,48 +172,23 @@ export const AuthProvider = ({ children }) => {
   async function signInWithGoogle() {
     try {
       const provider = new GoogleAuthProvider();
-      const userCredential = await signInWithPopup(auth, provider);
       
-      // Check if user document exists, if not create it
-      const userDocRef = doc(db, 'users', userCredential.user.uid);
-      const userDocSnap = await getDoc(userDocRef);
+      // Determine if this is a mobile device
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
       
-      if (!userDocSnap.exists()) {
-        // Create new user document
-        await setDoc(userDocRef, {
-          uid: userCredential.user.uid,
-          email: userCredential.user.email,
-          displayName: userCredential.user.displayName || 'User',
-          photoURL: userCredential.user.photoURL || '',
-          createdAt: serverTimestamp(),
-          lastLogin: serverTimestamp(),
-          mood_entries: [],
-          sleep_entries: [],
-          journal_entries: [],
-          stress_entries: [],
-          activity_impact: [],
-          joinedGroups: [],
-          settings: {
-            language: 'en',
-            notificationsEnabled: true,
-            theme: 'light',
-            privacy: {
-              shareAnonymousData: true,
-              receiveEmails: true,
-              showScoreInCommunity: false
-            }
-          }
-        });
+      if (isMobile || window.location.hostname !== 'localhost') {
+        // Use redirect method for mobile or production environment
+        await signInWithRedirect(auth, provider);
+        return null; // This function won't return a credential directly when using redirect
       } else {
-        // Update last login
-        await updateDoc(userDocRef, {
-          lastLogin: serverTimestamp()
-        });
+        // Use popup for desktop development environment
+        const userCredential = await signInWithPopup(auth, provider);
+        await handleGoogleAuthUser(userCredential.user);
+        return userCredential;
       }
-      
-      return userCredential;
     } catch (err) {
-      setError(err.message);
+      console.error("Google Sign-in error:", err);
+      setError(`Google Sign-in failed: ${err.message}`);
       throw err;
     }
   }
@@ -175,6 +220,7 @@ export const AuthProvider = ({ children }) => {
       
       return true;
     } catch (err) {
+      console.error("Profile update error:", err);
       setError(err.message);
       throw err;
     }
