@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import ThemeToggle from '../shared/ThemeToggle';
+import { Eye, EyeOff } from 'lucide-react';
 
 const SignupPage = () => {
     const navigate = useNavigate();
-    const { signup, signInWithGoogle } = useAuth();
+    const { signup, signInWithGoogle, currentUser } = useAuth();
     const { theme, isDark } = useTheme();
     const [formData, setFormData] = useState({
         fullName: '',
@@ -18,21 +19,32 @@ const SignupPage = () => {
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const [redirecting, setRedirecting] = useState(false);
 
-    const handleSignInWithGoogle = async() => {
-        try {
-            setError('');
-            setLoading(true);
-            await signInWithGoogle();
+    // Check if user is already logged in
+    useEffect(() => {
+        if (currentUser) {
             navigate('/reset-password', {
                 state: {
                     from: 'signup',
                     flow: ['greeting', 'questionnaire', 'dashboard']
                 }
             });
+        }
+    }, [currentUser, navigate]);
+
+    const handleSignInWithGoogle = async() => {
+        try {
+            setError('');
+            setLoading(true);
+            setRedirecting(true);
+            await signInWithGoogle();
+            // Note: For redirect flow, this code may not execute as the page will reload
+            // The redirect handling is done in the AuthContext
         } catch (error) {
-            setError('Failed to sign up with Google');
-        } finally {
+            console.error("Google Sign-up error:", error);
+            setError(`Failed to sign up with Google: ${error.message}`);
+            setRedirecting(false);
             setLoading(false);
         }
     };
@@ -55,7 +67,8 @@ const SignupPage = () => {
                 }
             });
         } catch (error) {
-            setError('Failed to create an account');
+            console.error("Signup error:", error);
+            setError(`Failed to create an account: ${error.message}`);
         } finally {
             setLoading(false);
         }
@@ -92,6 +105,12 @@ const SignupPage = () => {
                     {error && (
                         <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-center text-sm">
                             {error}
+                        </div>
+                    )}
+                    
+                    {redirecting && (
+                        <div className="mb-4 p-3 bg-blue-100 text-blue-700 rounded-lg text-center text-sm">
+                            Redirecting to Google for authentication...
                         </div>
                     )}
 
@@ -198,7 +217,11 @@ const SignupPage = () => {
                                     onClick={() => setShowPassword(!showPassword)}
                                     className="absolute right-3 top-1/2 -translate-y-1/2"
                                 >
-                                    {/* Eye icon SVG */}
+                                    {showPassword ? (
+                                        <Eye className="w-5 h-5 text-slate-500" />
+                                    ) : (
+                                        <EyeOff className="w-5 h-5 text-slate-500" />
+                                    )}
                                 </button>
                             </div>
                         </div>
@@ -225,7 +248,11 @@ const SignupPage = () => {
                                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                                     className="absolute right-3 top-1/2 -translate-y-1/2"
                                 >
-                                    {/* Eye icon SVG */}
+                                    {showConfirmPassword ? (
+                                        <Eye className="w-5 h-5 text-slate-500" />
+                                    ) : (
+                                        <EyeOff className="w-5 h-5 text-slate-500" />
+                                    )}
                                 </button>
                             </div>
                         </div>
