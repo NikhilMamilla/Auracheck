@@ -7,7 +7,7 @@ import ThemeToggle from '../shared/ThemeToggle';
 
 const LoginPage = () => {
     const navigate = useNavigate();
-    const { login, signInWithGoogle, currentUser } = useAuth();
+    const { login, signInWithGoogle, currentUser, error: authError } = useAuth();
     const { theme, isDark } = useTheme();
     const [formData, setFormData] = useState({
         email: '',
@@ -18,9 +18,20 @@ const LoginPage = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [redirecting, setRedirecting] = useState(false);
 
+    // Check for auth errors
+    useEffect(() => {
+        if (authError) {
+            setError(authError);
+            setRedirecting(false);
+            setLoading(false);
+        }
+    }, [authError]);
+
     // Check if user is already logged in
     useEffect(() => {
+        console.log("LoginPage: Current user state changed:", currentUser);
         if (currentUser) {
+            console.log("User is logged in, navigating to reset-password");
             navigate('/reset-password', { state: { from: 'login' } });
         }
     }, [currentUser, navigate]);
@@ -30,7 +41,9 @@ const LoginPage = () => {
         try {
             setError('');
             setLoading(true);
+            console.log("Attempting email login for:", formData.email);
             await login(formData.email, formData.password);
+            console.log("Email login successful");
             navigate('/reset-password', { state: { from: 'login' } });
         } catch (error) {
             console.error("Login error:", error);
@@ -45,11 +58,12 @@ const LoginPage = () => {
             setError('');
             setLoading(true);
             setRedirecting(true);
+            console.log("LoginPage: Initiating Google sign-in");
             await signInWithGoogle();
             // Note: For redirect flow, this code may not execute as the page will reload
-            // The redirect handling is done in the AuthContext
+            console.log("LoginPage: After signInWithGoogle() call");
         } catch (error) {
-            console.error("Google Sign-in error:", error);
+            console.error("Google Sign-in error from LoginPage:", error);
             setError(`Failed to sign in with Google: ${error.message}`);
             setRedirecting(false);
             setLoading(false);
