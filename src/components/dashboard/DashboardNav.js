@@ -105,12 +105,53 @@ const DashboardNav = ({ activeSection, onSectionChange }) => {
       console.error('Logout error:', error);
     }
   };
+
+  // Handle touch events for mobile swipe to open/close menu
+  const [touchStart, setTouchStart] = useState(null);
+  const [touchEnd, setTouchEnd] = useState(null);
+  
+  // The required distance between touchStart and touchEnd to be detected as a swipe
+  const minSwipeDistance = 50;
+  
+  const onTouchStart = (e) => {
+    setTouchEnd(null); // Reset touchEnd
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+  
+  const onTouchMove = (e) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+  
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+    
+    // Add swipe logic
+    if (isLeftSwipe && !isMobileMenuOpen) {
+      // Left swipe while menu is closed - do nothing
+    } else if (isLeftSwipe && isMobileMenuOpen) {
+      // Left swipe while menu is open - close it
+      setIsMobileMenuOpen(false);
+    } else if (isRightSwipe && !isMobileMenuOpen) {
+      // Right swipe while menu is closed - open it
+      setIsMobileMenuOpen(true);
+    } else if (isRightSwipe && isMobileMenuOpen) {
+      // Right swipe while menu is open - do nothing
+    }
+  };
   
   return (
     <>
       {/* Mobile navigation */}
-      <div className="block md:hidden relative z-20">
-        <div className={`${theme.nav || 'bg-white dark:bg-gray-800'} border-b ${theme.border} px-4 py-3 flex items-center justify-between bg-opacity-70 backdrop-filter backdrop-blur-md shadow-sm`}>
+      <div 
+        className="block md:hidden relative z-20"
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      >
+        <div className={`${theme.nav || 'bg-white dark:bg-gray-800'} border-b ${theme.border} px-4 py-3 flex items-center justify-between bg-opacity-70 backdrop-filter backdrop-blur-md shadow-sm sticky top-0 w-full z-20`}>
           <div className="flex items-center">
             <div className="w-8 h-8 rounded-full flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-sm">
               <span className="text-sm font-bold">A</span>
@@ -118,7 +159,7 @@ const DashboardNav = ({ activeSection, onSectionChange }) => {
             <h1 className={`text-xl font-bold ml-2 text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-purple-600`}>AuraCheck</h1>
           </div>
           
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-3">
             {/* Theme toggle */}
             <button
               onClick={toggleTheme}
@@ -155,57 +196,89 @@ const DashboardNav = ({ activeSection, onSectionChange }) => {
           </div>
         </div>
         
-        {/* Mobile menu - Enhanced glassmorphism design */}
-        {isMobileMenuOpen && (
-          <div className={`${theme.nav || 'bg-white dark:bg-gray-800'} border-b ${theme.border} bg-opacity-70 backdrop-filter backdrop-blur-md shadow-lg absolute w-full z-30 transition-all duration-300 ease-in-out`}>
-            <nav className="px-4 py-4 space-y-1">
-              {navItems.map(item => (
-                <button
-                  key={item.id}
-                  className={`w-full text-left px-4 py-3 rounded-lg flex items-center transition-all duration-200 ${
-                    activeSection === item.id 
-                      ? `bg-gradient-to-r from-indigo-500/10 to-purple-500/10 text-indigo-600 dark:text-indigo-400 font-medium`
-                      : theme.text
-                  }`}
-                  onClick={() => handleSectionChange(item.id)}
-                >
-                  <span className={`mr-3 ${activeSection === item.id ? 'text-indigo-600 dark:text-indigo-400' : ''}`}>
-                    {item.icon}
-                  </span>
-                  {item.label}
-                </button>
-              ))}
-              
+        {/* Mobile menu - Enhanced glassmorphism design with smooth transition */}
+        <div 
+          className={`${theme.nav || 'bg-white dark:bg-gray-800'} border-b ${theme.border} bg-opacity-95 backdrop-filter backdrop-blur-md shadow-lg fixed top-14 left-0 h-[calc(100vh-3.5rem)] w-full z-30 transform transition-transform duration-300 ease-in-out ${
+            isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
+        >
+          <nav className="px-4 py-4 space-y-1 overflow-y-auto h-full">
+            {navItems.map(item => (
               <button
+                key={item.id}
                 className={`w-full text-left px-4 py-3 rounded-lg flex items-center transition-all duration-200 ${
-                  activeSection === 'profile' 
+                  activeSection === item.id 
                     ? `bg-gradient-to-r from-indigo-500/10 to-purple-500/10 text-indigo-600 dark:text-indigo-400 font-medium`
                     : theme.text
                 }`}
-                onClick={() => handleSectionChange('profile')}
+                onClick={() => handleSectionChange(item.id)}
               >
-                <span className={`mr-3 ${activeSection === 'profile' ? 'text-indigo-600 dark:text-indigo-400' : ''}`}>
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-                  </svg>
+                <span className={`mr-3 ${activeSection === item.id ? 'text-indigo-600 dark:text-indigo-400' : ''}`}>
+                  {item.icon}
                 </span>
-                Profile
+                {item.label}
               </button>
+            ))}
+            
+            <button
+              className={`w-full text-left px-4 py-3 rounded-lg flex items-center transition-all duration-200 ${
+                activeSection === 'profile' 
+                  ? `bg-gradient-to-r from-indigo-500/10 to-purple-500/10 text-indigo-600 dark:text-indigo-400 font-medium`
+                  : theme.text
+              }`}
+              onClick={() => handleSectionChange('profile')}
+            >
+              <span className={`mr-3 ${activeSection === 'profile' ? 'text-indigo-600 dark:text-indigo-400' : ''}`}>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                </svg>
+              </span>
+              Profile
+            </button>
 
-              {/* Logout button for mobile */}
-              <button
-                className={`w-full text-left px-4 py-3 rounded-lg flex items-center transition-all duration-200 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20`}
-                onClick={() => setShowLogoutConfirm(true)}
-              >
-                <span className="mr-3">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
-                  </svg>
-                </span>
-                Logout
-              </button>
-            </nav>
-          </div>
+            {/* User info on mobile */}
+            {!loading && userData && (
+              <div className="mt-4 p-4 rounded-lg bg-gray-50 dark:bg-gray-700/50">
+                <div className="flex items-center">
+                  <div className="w-10 h-10 rounded-full bg-white dark:bg-gray-700 flex items-center justify-center mr-3 ring-2 ring-white dark:ring-gray-800 shadow-md overflow-hidden">
+                    <svg className="w-8 h-8" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M12 12C14.2091 12 16 10.2091 16 8C16 5.79086 14.2091 4 12 4C9.79086 4 8 5.79086 8 8C8 10.2091 9.79086 12 12 12Z" fill="currentColor" className="text-gray-700 dark:text-gray-300" />
+                      <path d="M12 14C8.13401 14 5 17.134 5 21H19C19 17.134 15.866 14 12 14Z" fill="currentColor" className="text-gray-700 dark:text-gray-300" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div className={`font-medium ${theme.textBold || theme.text}`}>
+                      {userData.displayName || 'User'}
+                    </div>
+                    <div className={`text-xs truncate max-w-[200px] ${theme.textMuted || 'text-gray-500 dark:text-gray-400'}`}>
+                      {currentUser?.email}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Logout button for mobile */}
+            <button
+              className={`w-full text-left px-4 py-3 rounded-lg flex items-center transition-all duration-200 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 mt-2`}
+              onClick={() => setShowLogoutConfirm(true)}
+            >
+              <span className="mr-3">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                </svg>
+              </span>
+              Logout
+            </button>
+          </nav>
+        </div>
+
+        {/* Overlay to close the menu when clicking outside */}
+        {isMobileMenuOpen && (
+          <div 
+            className="fixed inset-0 z-10 bg-black/20" 
+            onClick={() => setIsMobileMenuOpen(false)}
+          ></div>
         )}
       </div>
       
@@ -328,26 +401,26 @@ const DashboardNav = ({ activeSection, onSectionChange }) => {
       {/* Logout Confirmation Modal */}
       {showLogoutConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className={`${theme.nav || 'bg-white dark:bg-gray-800'} max-w-md w-full rounded-xl shadow-xl p-6 border ${theme.border} transform transition-all`}>
+          <div className={`${theme.nav || 'bg-white dark:bg-gray-800'} max-w-xs md:max-w-md w-full rounded-xl shadow-xl p-5 md:p-6 border ${theme.border} transform transition-all mx-auto`}>
             <div className="text-center mb-4">
-              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 dark:bg-red-900/30 mb-6">
-                <svg className="h-8 w-8 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <div className="mx-auto flex items-center justify-center h-14 w-14 md:h-16 md:w-16 rounded-full bg-red-100 dark:bg-red-900/30 mb-4 md:mb-6">
+                <svg className="h-7 w-7 md:h-8 md:w-8 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
                 </svg>
               </div>
               <h3 className={`text-lg font-medium ${theme.textBold || theme.text}`}>Sign out from AuraCheck?</h3>
-              <p className={`${theme.textMuted || 'text-gray-500 dark:text-gray-400'} mt-2`}>Your session will end and you'll need to sign in again next time.</p>
+              <p className={`${theme.textMuted || 'text-gray-500 dark:text-gray-400'} mt-2 text-sm`}>Your session will end and you'll need to sign in again next time.</p>
             </div>
             <div className="flex gap-3 mt-6">
               <button
                 onClick={() => setShowLogoutConfirm(false)}
-                className={`flex-1 px-4 py-2 text-center rounded-lg transition-colors ${theme.buttonSecondary || 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
+                className={`flex-1 px-4 py-2 text-center rounded-lg transition-colors text-sm ${theme.buttonSecondary || 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
               >
                 Cancel
               </button>
               <button
                 onClick={handleLogout}
-                className="flex-1 px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg font-medium shadow-sm hover:shadow-md transition-all hover:from-red-600 hover:to-red-700"
+                className="flex-1 px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg font-medium shadow-sm hover:shadow-md transition-all hover:from-red-600 hover:to-red-700 text-sm"
               >
                 Sign Out
               </button>
