@@ -9,7 +9,9 @@ import {
   signOut,
   onAuthStateChanged,
   sendPasswordResetEmail,
-  updateProfile
+  updateProfile,
+  setPersistence,
+  browserLocalPersistence
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
@@ -26,18 +28,37 @@ export const AuthProvider = ({ children }) => {
   const [error, setError] = useState(null);
   const [userData, setUserData] = useState(null);
   
+  // Set persistence to LOCAL
+  useEffect(() => {
+    const setPersistenceType = async () => {
+      try {
+        await setPersistence(auth, browserLocalPersistence);
+        console.log("Firebase persistence set to LOCAL");
+      } catch (error) {
+        console.error("Error setting persistence:", error);
+      }
+    };
+    
+    setPersistenceType();
+  }, []);
+  
   // Check for redirect result on component mount
   useEffect(() => {
     const checkRedirectResult = async () => {
       try {
+        console.log("Checking for redirect result...");
         const result = await getRedirectResult(auth);
+        console.log("Redirect result:", result);
+        
         if (result?.user) {
-          // Handle the redirect authentication here
+          console.log("User successfully authenticated via redirect:", result.user);
           await handleGoogleAuthUser(result.user);
+        } else {
+          console.log("No redirect result found or user is null");
         }
       } catch (err) {
         console.error("Redirect result error:", err);
-        setError(err.message);
+        setError(`Redirect result error: ${err.message}`);
       }
     };
     
@@ -47,11 +68,13 @@ export const AuthProvider = ({ children }) => {
   // Helper function to process Google Auth user data
   async function handleGoogleAuthUser(user) {
     try {
+      console.log("Handling Google user:", user.uid);
       // Check if user document exists, if not create it
       const userDocRef = doc(db, 'users', user.uid);
       const userDocSnap = await getDoc(userDocRef);
       
       if (!userDocSnap.exists()) {
+        console.log("Creating new user document for:", user.email);
         // Create new user document
         await setDoc(userDocRef, {
           uid: user.uid,
@@ -77,11 +100,14 @@ export const AuthProvider = ({ children }) => {
             }
           }
         });
+        console.log("User document created successfully");
       } else {
+        console.log("Updating existing user document");
         // Update last login
         await updateDoc(userDocRef, {
           lastLogin: serverTimestamp()
         });
+        console.log("Last login updated successfully");
       }
       
       return true;
@@ -94,13 +120,16 @@ export const AuthProvider = ({ children }) => {
   // Enhanced signup function to store user name
   async function signup(email, password, displayName) {
     try {
+      console.log("Starting email/password signup for:", email);
       // Create user in Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      console.log("User created in Firebase Auth");
       
       // Set display name
       await updateProfile(userCredential.user, {
         displayName: displayName
       });
+      console.log("Display name set:", displayName);
       
       // Create user document in Firestore
       await setDoc(doc(db, 'users', userCredential.user.uid), {
@@ -126,6 +155,7 @@ export const AuthProvider = ({ children }) => {
           }
         }
       });
+      console.log("User document created in Firestore");
       
       return userCredential;
     } catch (err) {
@@ -137,13 +167,16 @@ export const AuthProvider = ({ children }) => {
 
   async function login(email, password) {
     try {
+      console.log("Starting email/password login for:", email);
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      console.log("Login successful");
       
       // Update last login timestamp
       const userDocRef = doc(db, 'users', userCredential.user.uid);
       await updateDoc(userDocRef, {
         lastLogin: serverTimestamp()
       });
+      console.log("Last login timestamp updated");
       
       return userCredential;
     } catch (err) {
@@ -155,8 +188,10 @@ export const AuthProvider = ({ children }) => {
 
   async function logout() {
     try {
+      console.log("Logging out user");
       await signOut(auth);
       setUserData(null);
+      console.log("User logged out successfully");
       return true;
     } catch (err) {
       console.error("Logout error:", err);
@@ -166,26 +201,23 @@ export const AuthProvider = ({ children }) => {
   }
 
   function resetPassword(email) {
+    console.log("Sending password reset email to:", email);
     return sendPasswordResetEmail(auth, email);
   }
 
   async function signInWithGoogle() {
     try {
+      console.log("Starting Google sign-in process...");
       const provider = new GoogleAuthProvider();
       
-      // Determine if this is a mobile device
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      // Log the current URL for debugging
+      console.log("Current URL:", window.location.href);
       
-      if (isMobile || window.location.hostname !== 'localhost') {
-        // Use redirect method for mobile or production environment
-        await signInWithRedirect(auth, provider);
-        return null; // This function won't return a credential directly when using redirect
-      } else {
-        // Use popup for desktop development environment
-        const userCredential = await signInWithPopup(auth, provider);
-        await handleGoogleAuthUser(userCredential.user);
-        return userCredential;
-      }
+      // Always use redirect for Firebase hosting
+      console.log("Using signInWithRedirect for Google auth");
+      await signInWithRedirect(auth, provider);
+      // This line won't execute immediately due to redirect
+      return null;
     } catch (err) {
       console.error("Google Sign-in error:", err);
       setError(`Google Sign-in failed: ${err.message}`);
@@ -197,6 +229,7 @@ export const AuthProvider = ({ children }) => {
   async function updateUserProfile(profileData) {
     try {
       if (!currentUser) throw new Error('No user logged in');
+      console.log("Updating user profile");
       
       // Update Firebase Auth profile if needed
       if (profileData.displayName || profileData.photoURL) {
@@ -204,11 +237,13 @@ export const AuthProvider = ({ children }) => {
           displayName: profileData.displayName || currentUser.displayName,
           photoURL: profileData.photoURL || currentUser.photoURL
         });
+        console.log("Auth profile updated");
       }
       
       // Update Firestore user document
       const userDocRef = doc(db, 'users', currentUser.uid);
       await updateDoc(userDocRef, profileData);
+      console.log("Firestore profile updated");
       
       // Update local user data state
       if (userData) {
@@ -229,12 +264,14 @@ export const AuthProvider = ({ children }) => {
   // Fetch user data from Firestore
   async function fetchUserData(uid) {
     try {
+      console.log("Fetching user data for:", uid);
       const userDocRef = doc(db, 'users', uid);
       const userDocSnap = await getDoc(userDocRef);
       
       if (userDocSnap.exists()) {
         const data = userDocSnap.data();
         setUserData(data);
+        console.log("User data fetched successfully");
         return data;
       } else {
         console.log('No user document found!');
@@ -249,7 +286,9 @@ export const AuthProvider = ({ children }) => {
   }
 
   useEffect(() => {
+    console.log("Setting up auth state change listener");
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      console.log("Auth state changed, user:", user ? user.email : "null");
       setCurrentUser(user);
       
       if (user) {
