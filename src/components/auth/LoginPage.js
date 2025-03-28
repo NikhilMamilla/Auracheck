@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -7,7 +7,7 @@ import ThemeToggle from '../shared/ThemeToggle';
 
 const LoginPage = () => {
     const navigate = useNavigate();
-    const { login, signInWithGoogle } = useAuth();
+    const { login, signInWithGoogle, currentUser } = useAuth();
     const { theme, isDark } = useTheme();
     const [formData, setFormData] = useState({
         email: '',
@@ -16,6 +16,14 @@ const LoginPage = () => {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [redirecting, setRedirecting] = useState(false);
+
+    // Check if user is already logged in
+    useEffect(() => {
+        if (currentUser) {
+            navigate('/reset-password', { state: { from: 'login' } });
+        }
+    }, [currentUser, navigate]);
 
     const handleLogin = async (e) => {
         e.preventDefault();
@@ -25,7 +33,8 @@ const LoginPage = () => {
             await login(formData.email, formData.password);
             navigate('/reset-password', { state: { from: 'login' } });
         } catch (error) {
-            setError('Failed to log in');
+            console.error("Login error:", error);
+            setError(`Failed to log in: ${error.message}`);
         } finally {
             setLoading(false);
         }
@@ -35,11 +44,14 @@ const LoginPage = () => {
         try {
             setError('');
             setLoading(true);
+            setRedirecting(true);
             await signInWithGoogle();
-            navigate('/reset-password', { state: { from: 'login' } });
+            // Note: For redirect flow, this code may not execute as the page will reload
+            // The redirect handling is done in the AuthContext
         } catch (error) {
-            setError('Failed to sign in with Google');
-        } finally {
+            console.error("Google Sign-in error:", error);
+            setError(`Failed to sign in with Google: ${error.message}`);
+            setRedirecting(false);
             setLoading(false);
         }
     };
@@ -67,6 +79,12 @@ const LoginPage = () => {
                     {error && (
                         <div className="mb-6 p-3 bg-red-100 text-red-700 rounded-lg text-center">
                             {error}
+                        </div>
+                    )}
+                    
+                    {redirecting && (
+                        <div className="mb-6 p-3 bg-blue-100 text-blue-700 rounded-lg text-center">
+                            Redirecting to Google for authentication...
                         </div>
                     )}
 
