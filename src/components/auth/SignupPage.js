@@ -7,7 +7,7 @@ import { Eye, EyeOff } from 'lucide-react';
 
 const SignupPage = () => {
     const navigate = useNavigate();
-    const { signup, signInWithGoogle, currentUser } = useAuth();
+    const { signup, signInWithGoogle, currentUser, error: authError } = useAuth();
     const { theme, isDark } = useTheme();
     const [formData, setFormData] = useState({
         fullName: '',
@@ -21,9 +21,20 @@ const SignupPage = () => {
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [redirecting, setRedirecting] = useState(false);
 
+    // Check for auth errors
+    useEffect(() => {
+        if (authError) {
+            setError(authError);
+            setRedirecting(false);
+            setLoading(false);
+        }
+    }, [authError]);
+
     // Check if user is already logged in
     useEffect(() => {
+        console.log("SignupPage: Current user state changed:", currentUser);
         if (currentUser) {
+            console.log("User is logged in, navigating to reset-password");
             navigate('/reset-password', {
                 state: {
                     from: 'signup',
@@ -38,11 +49,12 @@ const SignupPage = () => {
             setError('');
             setLoading(true);
             setRedirecting(true);
+            console.log("SignupPage: Initiating Google sign-in");
             await signInWithGoogle();
             // Note: For redirect flow, this code may not execute as the page will reload
-            // The redirect handling is done in the AuthContext
+            console.log("SignupPage: After signInWithGoogle() call");
         } catch (error) {
-            console.error("Google Sign-up error:", error);
+            console.error("Google Sign-up error from SignupPage:", error);
             setError(`Failed to sign up with Google: ${error.message}`);
             setRedirecting(false);
             setLoading(false);
@@ -59,7 +71,9 @@ const SignupPage = () => {
         try {
             setError('');
             setLoading(true);
+            console.log("Attempting email signup for:", formData.email);
             await signup(formData.email, formData.password, formData.fullName);
+            console.log("Email signup successful");
             navigate('/reset-password', {
                 state: {
                     from: 'signup',
